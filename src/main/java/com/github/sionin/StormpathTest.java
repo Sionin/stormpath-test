@@ -3,10 +3,8 @@ package com.github.sionin;
 import com.stormpath.sdk.account.Account;
 import com.stormpath.sdk.account.AccountCriteria;
 import com.stormpath.sdk.account.Accounts;
-import com.stormpath.sdk.directory.CustomData;
 import com.stormpath.sdk.directory.Directory;
 import com.stormpath.sdk.group.Group;
-import com.stormpath.sdk.group.GroupList;
 import com.stormpath.sdk.oauth.TokenResponse;
 import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
@@ -36,8 +34,20 @@ public class StormpathTest {
             }
         };
         testGetAllUsers(clientWrapper0, 2);
+//
+//        System.out.println("Test full user info ");
+//        StormpathClientWrapper clientWrapper1 = new StormpathClientWrapper() {
+//            protected UserWrapper getUser(Account account) {
+//                return getFullUser(this, account);
+//            }
+//
+//            protected AccountCriteria getAccountsCriteria() {
+//                return Accounts.criteria().limitTo(50);
+//            }
+//        };
+//        testGetAllUsers(clientWrapper1, 2);
 
-        System.out.println("\n\nTest full user info");
+        System.out.println("\n\nTest full user info ");
         StormpathClientWrapper clientWrapper2 = new StormpathClientWrapper() {
             protected UserWrapper getUser(Account account) {
                 return getFullUser(this, account);
@@ -178,13 +188,16 @@ public class StormpathTest {
 
     private static UserWrapper getFullUser(StormpathClientWrapper clientWrapper, Account account) {
         Set<String> groups = new HashSet<String>();
+
         for (Group group : account.getGroups()) {
             groups.add(group.getName());
         }
+        HashMap<String, Object> additionalData = new HashMap<String, Object>(account.getCustomData());
+
         return new UserWrapper(
                 account.getUsername(),
                 account.getEmail(),
-                new HashMap<String, Object>(account.getCustomData()),
+                additionalData,
                 groups
         );
     }
@@ -198,52 +211,52 @@ public class StormpathTest {
         );
     }
 
-    private static UserWrapper getUserWithoutGroups(StormpathClientWrapper clientWrapper, Account account) {
-        Set<String> groups = new HashSet<String>();
-        GroupList groupList = account.getGroups();
-        assert groupList != null;
-        return new UserWrapper(
-                account.getUsername(),
-                account.getEmail(),
-                new HashMap<String, Object>(account.getCustomData()),
-                groups
-        );
-    }
-
-    private static CustomData getCustomData(StormpathClientWrapper clientWrapper, Account account) {
-        return clientWrapper.getResource(account.getCustomData().getHref(), CustomData.class);
-    }
-
-    private static Map<String, Set<String>> groupsCache = new HashMap<String, Set<String>>();
-
-    private static UserWrapper getUserWithCachedGroups(StormpathClientWrapper clientWrapper, Account account) {
-        GroupList groupList = account.getGroups();
-        assert groupList != null;
-        String href = groupList.getHref();
-
-        Set<String> groups = getGroupsFromCache(clientWrapper, href);
-        return new UserWrapper(
-                account.getUsername(),
-                account.getEmail(),
-                new HashMap<String, Object>(getCustomData(clientWrapper, account)),
-                groups
-        );
-    }
-
-    private static Set<String> getGroupsFromCache(StormpathClientWrapper clientWrapper, String href) {
-        Set<String> groups = groupsCache.get(href);
-        if (groups != null) {
-            return groups;
-        }
-        groups = new HashSet<String>();
-
-        GroupList groupList = clientWrapper.getResource(href, GroupList.class);
-        for (Group group : groupList) {
-            groups.add(group.getName());
-        }
-
-        groupsCache.put(href, Collections.unmodifiableSet(groups));
-        return groups;
-    }
+//    private static UserWrapper getUserWithoutGroups(StormpathClientWrapper clientWrapper, Account account) {
+//        Set<String> groups = new HashSet<String>();
+//        GroupList groupList = account.getGroups();
+//        assert groupList != null;
+//        return new UserWrapper(
+//                account.getUsername(),
+//                account.getEmail(),
+//                new HashMap<String, Object>(account.getCustomData()),
+//                groups
+//        );
+//    }
+//
+//    private static CustomData getCustomData(StormpathClientWrapper clientWrapper, Account account) {
+//        return clientWrapper.getResource(account.getCustomData().getHref(), CustomData.class);
+//    }
+//
+//    private static Map<String, Set<String>> groupsCache = new HashMap<String, Set<String>>();
+//
+//    private static UserWrapper getUserWithCachedGroups(StormpathClientWrapper clientWrapper, Account account) {
+//        GroupList groupList = account.getGroups();
+//        assert groupList != null;
+//        String href = groupList.getHref();
+//
+//        Set<String> groups = getGroupsFromCache(clientWrapper, href);
+//        return new UserWrapper(
+//                account.getUsername(),
+//                account.getEmail(),
+//                new HashMap<String, Object>(getCustomData(clientWrapper, account)),
+//                groups
+//        );
+//    }
+//
+//    private static Set<String> getGroupsFromCache(StormpathClientWrapper clientWrapper, String href) {
+//        Set<String> groups = groupsCache.get(href);
+//        if (groups != null) {
+//            return groups;
+//        }
+//        groups = new HashSet<String>();
+//
+//        GroupList groupList = clientWrapper.getResource(href, GroupList.class);
+//        for (Group group : groupList) {
+//            groups.add(group.getName());
+//        }
+//
+//        groupsCache.put(href, Collections.unmodifiableSet(groups));
+//        return groups;
+//    }
 
 }

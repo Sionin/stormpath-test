@@ -11,12 +11,14 @@ import com.stormpath.sdk.application.*;
 import com.stormpath.sdk.authc.AuthenticationRequest;
 import com.stormpath.sdk.authc.AuthenticationResult;
 import com.stormpath.sdk.authc.UsernamePasswordRequest;
+import com.stormpath.sdk.cache.CacheManager;
+import com.stormpath.sdk.cache.Caches;
 import com.stormpath.sdk.client.Client;
 import com.stormpath.sdk.client.ClientBuilder;
 import com.stormpath.sdk.client.Clients;
-import com.stormpath.sdk.directory.AccountStore;
-import com.stormpath.sdk.directory.Directory;
-import com.stormpath.sdk.directory.DirectoryStatus;
+import com.stormpath.sdk.directory.*;
+import com.stormpath.sdk.group.Group;
+import com.stormpath.sdk.group.GroupList;
 import com.stormpath.sdk.impl.http.ServletHttpRequest;
 import com.stormpath.sdk.impl.oauth.authc.AccessTokenAuthenticationRequest;
 import com.stormpath.sdk.impl.util.Base64;
@@ -30,12 +32,14 @@ import org.mockito.Mockito;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
 public abstract class StormpathClientWrapper {
 
+    public static final int TTL = 15;
     protected Client client;
     protected Application application;
 
@@ -50,17 +54,38 @@ public abstract class StormpathClientWrapper {
             clientBuilder.setBaseUrl(baseUrl.trim());
         }
 
-//        CacheManager cacheManager = Caches.newCacheManager()
-//                .withDefaultTimeToLive(10, TimeUnit.MINUTES) //general default
-//                .withDefaultTimeToIdle(10, TimeUnit.MINUTES) //general default
-//                .withCache(Caches.forResource(GroupList.class) //Application-specific cache settings
-//                        .withTimeToLive(10, TimeUnit.MINUTES)
-//                        .withTimeToIdle(10, TimeUnit.MINUTES))
-//                .withCache(Caches.forResource(Group.class) //Application-specific cache settings
-//                        .withTimeToLive(10, TimeUnit.MINUTES)
-//                        .withTimeToIdle(10, TimeUnit.MINUTES))
-//                .build(); //build the CacheManager
-//        clientBuilder.setCacheManager(cacheManager);
+        CacheManager cacheManager = Caches.newCacheManager()
+                .withDefaultTimeToLive(1, TimeUnit.HOURS) //general default
+                .withDefaultTimeToIdle(1, TimeUnit.HOURS) //general default
+                .withCache(Caches.forResource(Application.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToIdle(TTL, TimeUnit.SECONDS))
+                .withCache(Caches.forResource(AccountStoreMapping.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS))
+                .withCache(Caches.forResource(Directory.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS))
+                .withCache(Caches.forResource(DirectoryList.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS))
+                .withCache(Caches.forResource(Group.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS))
+                .withCache(Caches.forResource(GroupList.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS))
+                .withCache(Caches.forResource(Account.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToIdle(TTL, TimeUnit.SECONDS))
+                .withCache(Caches.forResource(AccountList.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToIdle(TTL, TimeUnit.SECONDS))
+                .withCache(Caches.forResource(CustomData.class)
+                        .withTimeToLive(TTL, TimeUnit.SECONDS)
+                        .withTimeToIdle(TTL, TimeUnit.SECONDS))
+                .build();
+        clientBuilder.setCacheManager(cacheManager);
 
         client = clientBuilder.build();
         application = getApplication(System.getProperty("application"));
@@ -189,13 +214,16 @@ public abstract class StormpathClientWrapper {
         boolean hasNext = iterator.hasNext();
         while (hasNext) {
             Account account = iterator.next();
-//            if (customerIds == null || customerIds.isEmpty() || customerIds.contains(account.getDirectory().getName())) {
+
+            long utime = System.currentTimeMillis();
             users.add(getUser(account));
-//            }
-//            long htime = System.currentTimeMillis();
+            utime = System.currentTimeMillis() - utime;
+//            if(utime > TTL) System.out.printf("getUser(%s) time = %d%n", account.getFullName(), utime);
+
+            long htime = System.currentTimeMillis();
             hasNext = iterator.hasNext();
-//            htime = System.currentTimeMillis() - htime;
-//            if(htime > 0) System.out.println("hasNext time = " + htime);
+            htime = System.currentTimeMillis() - htime;
+//            if(htime > TTL) System.out.printf("hasNext time = %d%n", htime);
         }
 
         return users;
